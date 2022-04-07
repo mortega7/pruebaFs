@@ -1,0 +1,83 @@
+<template>
+  <div class="card border-primary border-2 rounded-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-center">
+        <h3 class="text-primary"><i class="fa fa-file"></i> Gestión de Archivos <span class="badge bg-primary rounded-pill mx-1">{{ (files != null) ? files.length : 0 }}</span></h3>
+      </div>
+      <div class="row">
+        <div class="col-lg-5 col-sm-12 mt-3">
+          <div class="card rounded-8">
+            <div class="card-header">Archivos</div>
+            <div class="card-body">
+              <p class="card-text">
+                <ul class="list-group list-group-flush">
+                  <li v-for="file, index in files" :key="index" class="d-flex justify-content-between align-items-start mt-2">
+                    <div class="me-auto">
+                      {{ file.name }}
+                    </div>
+                    <div class="ms-auto mx-3">
+                      <span class="badge bg-light text-dark border border-dark">{{ file.channel.name }}</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary btn-download" @click="downloadFile(file)">Descargar</button>
+                  </li>
+                </ul>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7 col-sm-12 mt-3">
+          <div class="card rounded-8">
+            <div class="card-body">
+              <BarChart />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { useStore } from 'vuex'
+import { computed, onMounted } from '@vue/runtime-core'
+import BarChart from '@/components/BarChart.vue'
+
+export default {
+  components: {
+    BarChart
+  },
+  setup () {
+    const store = useStore()
+    const files = computed(() => store.state.files)
+
+    onMounted(async () => {
+      await store.dispatch('getFiles').then(() => console.log('Files loaded...'))
+    })
+
+    setInterval(async () => {
+      await store.dispatch('getFiles').then(() => console.log('Files updated...'))
+    }, 30 * 1000)
+
+    return {
+      files
+    }
+  },
+  methods: {
+    async downloadFile (file) {
+      const a = document.createElement('a')
+      a.href = 'data:' + file.type + ';base64,' + file.data
+      a.download = file.name
+      a.click()
+    }
+  }
+}
+</script>
+
+<style>
+button.btn-download {
+  font-size: .75em;
+  line-height: 1.1em;
+  margin-top: 0.2em;
+  vertical-align: baseline;
+}
+</style>

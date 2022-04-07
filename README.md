@@ -14,4 +14,4 @@ send ***PATH***|Envia el archivo que se encuentra en la ruta ***PATH*** a todos 
 exit|Cierra la conexión con el servidor
 
 
-> Manuel Ortega - 2022 
+> Manuel Ortega `<morteguita@gmail.com>` - 2022 

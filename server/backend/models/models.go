@@ -9,18 +9,18 @@ type Message struct {
 }
 
 type ChannelRoom struct {
-	Name string
+	Name string `json:"name"`
 }
 
 type User struct {
-	Address string
-	Conn    net.Conn
-	Channel ChannelRoom
+	Address string      `json:"address"`
+	Conn    net.Conn    `json:"-"`
+	Channel ChannelRoom `json:"channel"`
 }
 
 type File struct {
-	Name    string
-	Type    string
-	Data    string
-	Channel ChannelRoom
+	Name    string      `json:"name"`
+	Type    string      `json:"type"`
+	Data    string      `json:"data"`
+	Channel ChannelRoom `json:"channel"`
 }

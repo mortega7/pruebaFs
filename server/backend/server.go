@@ -7,6 +7,7 @@ import (
 
 	"github.com/mortega7/pruebaFs/server/backend/controllers"
 	"github.com/mortega7/pruebaFs/server/backend/models"
+	"github.com/mortega7/pruebaFs/server/backend/router"
 )
 
 const (
@@ -28,8 +29,10 @@ func main() {
 		{Name: "channel-2"},
 		{Name: "channel-3"},
 	}
+	fmt.Println("TCP server started")
 
 	go broadcaster()
+	go apiServer()
 
 	for {
 		conn, err := listen.Accept()
@@ -40,7 +43,6 @@ func main() {
 
 		go handle(conn)
 	}
-
 }
 
 //Goroutine que se encarga de manejar las conexiones de los clientes
@@ -108,6 +110,11 @@ func broadcaster() {
 			}
 		}
 	}
+}
+
+//Goroutine para controlar la conexion al api
+func apiServer() {
+	router.SetRoutes()
 }
 
 //Se crea un nuevo mensaje
