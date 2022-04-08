@@ -58,16 +58,38 @@ export default createStore({
       }
       for (const ch of state.channels) {
         let quantity = 0
+        if (state.files != null) {
+          for (const f of state.files) {
+            if (f.channel.name === ch.name) {
+              quantity = quantity + 1
+            }
+          }
+
+          files.channels.push(ch.name)
+          files.quantities.push(quantity)
+        }
+      }
+      return files
+    },
+    getFilesByType: (state) => {
+      const files = {
+        types: [],
+        quantities: []
+      }
+      if (state.files != null) {
         for (const f of state.files) {
-          if (f.channel.name === ch.name) {
-            quantity = quantity + 1
+          const fileExt = f.name.split('.').pop().toUpperCase()
+          const item = files.types.find(t => t === fileExt)
+          const index = files.types.indexOf(item)
+
+          if (index >= 0) {
+            files.quantities[index] = files.quantities[index] + 1
+          } else {
+            files.types.push(fileExt)
+            files.quantities.push(1)
           }
         }
-
-        files.channels.push(ch.name)
-        files.quantities.push(quantity)
       }
-      console.log('files', files, state.channels.length)
       return files
     }
   },

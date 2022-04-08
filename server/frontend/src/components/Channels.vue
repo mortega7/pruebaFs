@@ -30,7 +30,7 @@ export default {
 
     setInterval(async () => {
       await store.dispatch('getChannels').then(() => console.log('Channels updated...'))
-    }, 30 * 1000)
+    }, process.env.VUE_APP_RELOAD_TIME * 1000)
 
     return {
       channels

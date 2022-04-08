@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/mortega7/pruebaFs/server/backend/models"
@@ -15,8 +17,6 @@ const (
 	ERR_UNDEF_FILEDATA   = "Datos del archivo no especificados"
 	ERR_NOT_FOUND_CHAN   = "Canal no encontrado"
 	ERR_NOT_SUBSCRIPTION = "Debes suscribirte primero a un canal"
-	TYPE_OWN_MESSAGE     = "propio"
-	TYPE_OTHERS_MESSAGE  = "otros"
 )
 
 var UserMessages = make(chan models.Message)
@@ -24,6 +24,34 @@ var Messages = make(chan models.Message)
 var Users []models.User
 var Channels []models.ChannelRoom
 var Files []models.File
+
+//Crea los canales por defecto
+func CreateDefaultChannels() {
+	Channels = []models.ChannelRoom{
+		{Name: "channel-1"},
+		{Name: "channel-2"},
+		{Name: "channel-3"},
+	}
+}
+
+//Crea un nuevo mensaje
+func NewMessage(msg string, user models.User) models.Message {
+	message := models.Message{
+		Text:    msg,
+		Address: user.Conn.RemoteAddr().String(),
+		Channel: user.Channel,
+	}
+	return message
+}
+
+//Crea un nuevo usuario
+func NewUser(conn net.Conn) models.User {
+	user := models.User{
+		Address: conn.RemoteAddr().String(),
+		Conn:    conn,
+	}
+	return user
+}
 
 //Decodifica el comando enviado por el cliente y ejecuta la funcion deseada
 func DecodeCommand(command string, address string) (string, string) {
@@ -202,9 +230,28 @@ func CreateBase64File(user models.User, commands []string) (models.File, error) 
 		data = dataFile[0]
 	}
 
+	//Si el archivo ya existe, se renombre
+	count := 1
+	fileName := commands[0]
+	fileValid := false
+	for !fileValid {
+		fileOldName := fileName
+		for _, f := range Files {
+			if f.Name == fileName {
+				fn := strings.Split(fileName, ".")
+				fileName = fn[0] + "-" + strconv.Itoa(count) + "." + fn[1]
+				count = count + 1
+			}
+		}
+
+		if fileOldName == fileName {
+			fileValid = true
+		}
+	}
+
 	//Se crea el struct con la informacion
 	file := models.File{
-		Name:    commands[0],
+		Name:    fileName,
 		Type:    mediaType,
 		Data:    data,
 		Channel: user.Channel,

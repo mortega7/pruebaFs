@@ -32,7 +32,7 @@ export default {
 
     setInterval(async () => {
       await store.dispatch('getUsers').then(() => console.log('Users updated...'))
-    }, 30 * 1000)
+    }, process.env.VUE_APP_RELOAD_TIME * 1000)
 
     return {
       users

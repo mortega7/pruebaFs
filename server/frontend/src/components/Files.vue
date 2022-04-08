@@ -1,19 +1,19 @@
 <template>
-  <div class="card border-primary border-2 rounded-3">
+  <div class="card border-primary border-2 rounded-3" v-if="files != null">
     <div class="card-body">
       <div class="d-flex justify-content-center">
-        <h3 class="text-primary"><i class="fa fa-file"></i> Gestión de Archivos <span class="badge bg-primary rounded-pill mx-1">{{ (files != null) ? files.length : 0 }}</span></h3>
+        <h3 class="text-primary"><i class="fa fa-file"></i> Gestión/Estadísticas de Archivos <span class="badge bg-primary rounded-pill mx-1">{{ (files != null) ? files.length : 0 }}</span></h3>
       </div>
       <div class="row">
         <div class="col-lg-5 col-sm-12 mt-3">
           <div class="card rounded-8">
-            <div class="card-header">Archivos</div>
+            <div class="card-header">Compartidos</div>
             <div class="card-body">
               <p class="card-text">
                 <ul class="list-group list-group-flush">
                   <li v-for="file, index in files" :key="index" class="d-flex justify-content-between align-items-start mt-2">
                     <div class="me-auto">
-                      {{ file.name }}
+                      <span class="text-file-name">{{ file.name }}</span>
                     </div>
                     <div class="ms-auto mx-3">
                       <span class="badge bg-light text-dark border border-dark">{{ file.channel.name }}</span>
@@ -27,8 +27,15 @@
         </div>
         <div class="col-lg-7 col-sm-12 mt-3">
           <div class="card rounded-8">
+            <div class="card-header">Compartidos por Canal</div>
             <div class="card-body">
               <BarChart />
+            </div>
+          </div>
+          <div class="card rounded-8 mt-3">
+            <div class="card-header">Compartidos por Extensión</div>
+            <div class="card-body">
+              <PieChart />
             </div>
           </div>
         </div>
@@ -41,10 +48,12 @@
 import { useStore } from 'vuex'
 import { computed, onMounted } from '@vue/runtime-core'
 import BarChart from '@/components/BarChart.vue'
+import PieChart from '@/components/PieChart.vue'
 
 export default {
   components: {
-    BarChart
+    BarChart,
+    PieChart
   },
   setup () {
     const store = useStore()
@@ -56,7 +65,7 @@ export default {
 
     setInterval(async () => {
       await store.dispatch('getFiles').then(() => console.log('Files updated...'))
-    }, 30 * 1000)
+    }, process.env.VUE_APP_RELOAD_TIME * 1000)
 
     return {
       files
@@ -74,6 +83,9 @@ export default {
 </script>
 
 <style>
+span.text-file-name {
+  font-size: 0.85em;
+}
 button.btn-download {
   font-size: .75em;
   line-height: 1.1em;

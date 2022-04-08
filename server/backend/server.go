@@ -6,7 +6,6 @@ import (
 	"net"
 
 	"github.com/mortega7/pruebaFs/server/backend/controllers"
-	"github.com/mortega7/pruebaFs/server/backend/models"
 	"github.com/mortega7/pruebaFs/server/backend/router"
 )
 
@@ -24,13 +23,10 @@ func main() {
 	}
 
 	//Canales por defecto
-	controllers.Channels = []models.ChannelRoom{
-		{Name: "channel-1"},
-		{Name: "channel-2"},
-		{Name: "channel-3"},
-	}
+	controllers.CreateDefaultChannels()
 	fmt.Println("TCP server started")
 
+	//Goroutines para las conexiones tcp y http
 	go broadcaster()
 	go apiServer()
 
@@ -50,10 +46,7 @@ func handle(conn net.Conn) {
 	defer conn.Close()
 
 	//Se crea el usuario
-	newUser := models.User{
-		Address: conn.RemoteAddr().String(),
-		Conn:    conn,
-	}
+	newUser := controllers.NewUser(conn)
 	controllers.Users = append(controllers.Users, newUser)
 	fmt.Println("Nuevo Usuario:", newUser.Address)
 
@@ -67,10 +60,10 @@ func handle(conn net.Conn) {
 			user := controllers.FindUserByAddress(newUser.Address)
 
 			if messageToOwnUser != "" {
-				controllers.UserMessages <- newMessage(messageToOwnUser, *user)
+				controllers.UserMessages <- controllers.NewMessage(messageToOwnUser, *user)
 			}
 			if messageToOtherUsers != "" {
-				controllers.Messages <- newMessage(messageToOtherUsers, *user)
+				controllers.Messages <- controllers.NewMessage(messageToOtherUsers, *user)
 			}
 		}
 	}
@@ -115,14 +108,4 @@ func broadcaster() {
 //Goroutine para controlar la conexion al api
 func apiServer() {
 	router.SetRoutes()
-}
-
-//Se crea un nuevo mensaje
-func newMessage(msg string, user models.User) models.Message {
-	message := models.Message{
-		Text:    msg,
-		Address: user.Conn.RemoteAddr().String(),
-		Channel: user.Channel,
-	}
-	return message
 }

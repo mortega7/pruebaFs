@@ -12,7 +12,9 @@ ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
 export default {
   name: 'BarChart',
-  components: { Bar },
+  components: {
+    Bar
+  },
   setup () {
     const store = useStore()
     const channelFiles = ref([])
@@ -25,17 +27,17 @@ export default {
 
     setInterval(() => {
       channelFiles.value = store.getters.getFilesByChannel
-    }, 30 * 1000)
+    }, process.env.VUE_APP_RELOAD_TIME * 1000)
 
     return {
       channelFiles,
       chartOptions: {
         responsive: true,
-        maintainAspectRatio: true
+        maintainAspectRatio: false
       },
       chartId: 'bar-chart',
       datasetIdKey: 'label',
-      height: 280
+      height: 300
     }
   },
   computed: {
@@ -46,7 +48,7 @@ export default {
           barThickness: 30,
           minBarThickness: 15,
           label: 'Archivos compartidos por canal',
-          backgroundColor: '#0d6efd',
+          backgroundColor: '#0D6EFD',
           data: this.channelFiles.quantities
         }]
       }
