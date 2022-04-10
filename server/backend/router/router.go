@@ -2,24 +2,16 @@ package router
 
 import (
 	"log"
+	"net/http"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/mortega7/pruebaFs/server/backend/controllers"
 )
 
 func SetRoutes() {
-	app := fiber.New()
-	app.Use(cors.New()) //CORS (Cross-Origin Resource Sharing)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/channel", controllers.GetChannels)
+	mux.HandleFunc("/api/user", controllers.GetUsers)
+	mux.HandleFunc("/api/file", controllers.GetFiles)
 
-	//Canales
-	app.Get("/api/channel", controllers.GetChannels)
-
-	//Usuarios
-	app.Get("/api/user", controllers.GetUsers)
-
-	//Archivos
-	app.Get("/api/file", controllers.GetFiles)
-
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(http.ListenAndServe(controllers.API_PORT, mux))
 }

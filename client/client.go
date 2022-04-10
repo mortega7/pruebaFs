@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -17,21 +18,18 @@ const (
 )
 
 func main() {
-	//Se establece conexion con el servidor
 	conn, err := net.Dial(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
 	if err != nil {
-		fmt.Println("Error al conectarse al servidor: " + err.Error())
+		log.Fatal("Error connecting to server: " + err.Error())
 		return
 	}
 	defer conn.Close()
 
-	//Se crea la carpeta del cliente para guardar los archivos
 	if err := controllers.CreateFolder(conn); err != nil {
-		fmt.Println("Error al crear la carpeta del cliente: " + err.Error())
+		log.Fatal("Error creating client folder: " + err.Error())
 		return
 	}
 
-	//Canales para recibir y enviar informacion al servidor
 	receiveFromServer := make(chan string)
 	sendToServer := make(chan bool)
 
@@ -41,68 +39,69 @@ func main() {
 
 		select {
 		case res := <-receiveFromServer:
-			if res != "" {
-				//Se imprime la respuesta del servidor
-				fmt.Println(res)
-			} else {
-				//Si se recibe vacio, es porque el servidor se cerró. Se cierran los clientes
-				os.Exit(0)
-			}
-		case <-sendToServer:
+			//Prints the server response
+			fmt.Println(res)
 		}
 	}
 }
 
-//Goroutine que se encarga de recibir la informacion del servidor
 func handleReceiveFromServer(conn net.Conn, chIn chan string) {
-	message, _ := bufio.NewReaderSize(conn, controllers.MAX_BUFFER_CAPACITY).ReadString('|')
-	message = strings.Replace(message, "|", "", 1)
+	//"|" indicates the end of the message
+	message, err := bufio.NewReaderSize(conn, controllers.MAX_BUFFER_CAPACITY).ReadString('|')
+	if err != nil {
+		exitClient(false)
+	}
 
-	//Si el mensaje contiene "~", significa que viene la informacion de un archivo
+	//If the message contains "~", it means that the information of a file is coming
+	message = strings.Replace(message, "|", "", 1)
 	if strings.Contains(message, "~") {
 		fileData := strings.Split(message, "~")
+		message = fileData[0]
 
-		if err := controllers.CopyFile(fileData[1], fileData[3], conn); err != nil {
-			message = ""
-			fmt.Println("Error al copiar el archivo en la carpeta: ", err.Error())
-		} else {
-			message = fileData[0]
+		err := controllers.CopyFile(fileData[1], fileData[3], conn)
+		if err != nil {
+			message = err.Error()
 		}
 	}
 
 	chIn <- message
 }
 
-//Goroutine que se encarga de enviar la informacion al servidor
 func handleSendToServer(conn net.Conn, chOut chan bool) {
 	reader := bufio.NewReaderSize(os.Stdin, controllers.MAX_BUFFER_CAPACITY)
 	fmt.Print(">> ")
-	text, _ := reader.ReadString('\n')
-
-	if text != "" {
-		//Se desconecta del servidor
-		if strings.TrimSpace(string(text)) == "exit" {
-			fmt.Println("$$ Adiós, vuelve pronto!")
-			os.Exit(0)
-		} else {
-			commandParts := strings.Split(strings.TrimSpace(string(text)), " ")
-			if commandParts[0] == "send" {
-				//Se lee y codifica el archivo en base64
-				path := strings.Join(commandParts[1:], " ")
-				file, err := controllers.DecodeFile(path)
-				if err != "" {
-					fmt.Println("Error al leer el archivo: " + err)
-				} else {
-					//Envia el comando al servidor
-					text = commandParts[0] + " " + file.Name + " " + file.Data
-					fmt.Fprintf(conn, text+"\n")
-				}
-			} else {
-				//Envia el comando al servidor
-				fmt.Fprintf(conn, text+"\n")
-			}
-		}
+	text, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatal("Error reading data from client: " + err.Error())
 	}
 
+	text = strings.TrimSpace(text)
+	if text != "" {
+		if text == "exit" {
+			exitClient(true)
+		}
+
+		if commandParts := strings.Split(text, " "); commandParts[0] == "send" {
+			filePath := strings.Join(commandParts[1:], " ")
+			file, err := controllers.DecodeFile(filePath)
+			text = commandParts[0] + " " + file.Name + " " + file.Data
+			if err != "" {
+				text = "image-wrcomm " + "Error reading file: " + err
+			}
+		}
+	} else {
+		text = "wrcomm"
+	}
+
+	fmt.Fprintf(conn, text+"\n")
 	chOut <- true
+}
+
+func exitClient(userExit bool) {
+	message := "$$ Goodbye!"
+	if !userExit {
+		message = "\n$$ The server has closed the connection"
+	}
+	fmt.Println(message)
+	os.Exit(0)
 }

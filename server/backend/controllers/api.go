@@ -1,20 +1,27 @@
 package controllers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"encoding/json"
+	"net/http"
 )
 
-//Lista todos los canales
-func GetChannels(c *fiber.Ctx) error {
-	return c.Status(200).JSON(Channels)
+func EnableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Content-Type", "application/json")
+	(*w).Header().Set("Access-Control-Allow-Origin", API_ORIGIN)
+	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type, access-control-allow-origin, access-control-allow-headers")
 }
 
-//Lista todos los usuarios
-func GetUsers(c *fiber.Ctx) error {
-	return c.Status(200).JSON(Users)
+func GetChannels(w http.ResponseWriter, r *http.Request) {
+	EnableCors(&w)
+	json.NewEncoder(w).Encode(Channels)
 }
 
-//Lista todos los archivos
-func GetFiles(c *fiber.Ctx) error {
-	return c.Status(200).JSON(Files)
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	EnableCors(&w)
+	json.NewEncoder(w).Encode(Users)
+}
+
+func GetFiles(w http.ResponseWriter, r *http.Request) {
+	EnableCors(&w)
+	json.NewEncoder(w).Encode(Files)
 }

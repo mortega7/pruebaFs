@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -10,13 +11,29 @@ import (
 )
 
 const (
-	ERR_UNDEF_COMM       = "Comando no válido"
-	ERR_UNDEF_MSG        = "Mensaje no especificado"
-	ERR_UNDEF_CHAN       = "Canal no especificado"
-	ERR_UNDEF_PATH       = "Archivo no especificado"
-	ERR_UNDEF_FILEDATA   = "Datos del archivo no especificados"
-	ERR_NOT_FOUND_CHAN   = "Canal no encontrado"
-	ERR_NOT_SUBSCRIPTION = "Debes suscribirte primero a un canal"
+	API_PORT   = ":3000"
+	API_ORIGIN = "http://localhost:8080"
+)
+
+const (
+	ERR_MESSAGE_IN       = "Error in %s"
+	ERR_WRONG_COMM       = "Incorrect or incomplete command"
+	ERR_UNDEF_COMM       = "Invalid command"
+	ERR_UNDEF_MSG        = "Unspecified message"
+	ERR_UNDEF_CHAN       = "Unspecified channel"
+	ERR_UNDEF_PATH       = "Unspecified file"
+	ERR_UNDEF_FILEDATA   = "File data not specified"
+	ERR_NOT_FOUND_CHAN   = "Channel not found"
+	ERR_NOT_SUBSCRIPTION = "You must first subscribe to a channel"
+	ERR_NOT_FOUND_USER   = "User not found"
+	ERR_DECODING_FILE    = "Error getting base64 data"
+	MSG_FROM_CHANNEL     = "Message from channel"
+	MSG_CHANNEL_CREATED  = "Channel created"
+	MSG_CHANNEL_EXISTS   = "Channel already exists"
+	MSG_SUBSCRIPTION     = "Successful subscription"
+	MSG_MESSAGE_SENT     = "Message sent"
+	MSG_FILE_SENT        = "File sent successfully"
+	MSG_FILE_RECEIVED    = "File %s has been received"
 )
 
 var UserMessages = make(chan models.Message)
@@ -25,7 +42,6 @@ var Users []models.User
 var Channels []models.ChannelRoom
 var Files []models.File
 
-//Crea los canales por defecto
 func CreateDefaultChannels() {
 	Channels = []models.ChannelRoom{
 		{Name: "channel-1"},
@@ -34,66 +50,89 @@ func CreateDefaultChannels() {
 	}
 }
 
-//Crea un nuevo mensaje
-func NewMessage(msg string, user models.User) models.Message {
-	message := models.Message{
+func CreateMessage(msg string, user models.User) models.Message {
+	return models.Message{
 		Text:    msg,
-		Address: user.Conn.RemoteAddr().String(),
+		Address: user.Address,
 		Channel: user.Channel,
 	}
-	return message
 }
 
-//Crea un nuevo usuario
-func NewUser(conn net.Conn) models.User {
+func CreateUser(conn net.Conn) {
 	user := models.User{
 		Address: conn.RemoteAddr().String(),
 		Conn:    conn,
 	}
-	return user
+	Users = append(Users, user)
 }
 
-//Decodifica el comando enviado por el cliente y ejecuta la funcion deseada
-func DecodeCommand(command string, address string) (string, string) {
-	ownMessage := ""
-	othersMessage := ""
-	commandParts := strings.Split(command, " ")
+func DeleteUser(address string) {
+	for i, user := range Users {
+		if user.Address != address {
+			continue
+		}
+		//Removes a client from the users array
+		Users = append(Users[:i], Users[i+1:]...)
+	}
+}
 
+func IsDestinationUser(message models.Message, user models.User) bool {
+	return message.Address == user.Conn.RemoteAddr().String()
+}
+
+func IsUserInChannel(message models.Message, user models.User) bool {
+	return message.Channel.Name == user.Channel.Name
+}
+
+func FindUserByAddress(address string) *models.User {
+	var user *models.User
+	for i := range Users {
+		if Users[i].Address != address {
+			continue
+		}
+		user = &Users[i]
+		return user
+	}
+	return nil
+}
+
+func DecodeCommand(command, address string) (string, string) {
+	commandParts := strings.Split(command, " ")
 	if len(commandParts) < 1 {
-		return "Comando incorrecto o incompleto", ""
+		return ERR_WRONG_COMM, ""
 	}
 
-	//Se ejecuta el comando
+	ownMessage, othersMessage := "", ""
 	switch commandParts[0] {
 	case "list":
 		ownMessage = ListAllChannels(address)
 	case "create":
+		ownMessage = ERR_UNDEF_CHAN
 		if commandParts[1] != "" {
-			ownMessage = CreateChannel(commandParts[1], address)
-		} else {
-			ownMessage = ERR_UNDEF_CHAN
+			ownMessage = CreateChannel(commandParts[1:], address)
 		}
 	case "subs":
+		ownMessage = ERR_UNDEF_CHAN
 		if commandParts[1] != "" {
-			ownMessage = SubscribeToChannel(commandParts[1], address)
-		} else {
-			ownMessage = ERR_UNDEF_CHAN
+			ownMessage = SubscribeToChannel(commandParts[1:], address)
 		}
-	case "broadcast":
+	case "cast":
+		ownMessage = ERR_UNDEF_MSG
 		if commandParts[1] != "" {
-			ownMessage, othersMessage = BroadcastToChannel(address, strings.Join(commandParts[1:], " "))
-		} else {
-			ownMessage = ERR_UNDEF_MSG
+			ownMessage, othersMessage = BroadcastToChannel(commandParts[1:], address)
 		}
 	case "send":
+		ownMessage = ERR_UNDEF_PATH
 		if commandParts[1] != "" {
+			ownMessage = ERR_UNDEF_FILEDATA
 			if commandParts[2] != "" {
-				ownMessage, othersMessage = SendFileToChannel(address, commandParts[1:])
-			} else {
-				ownMessage = ERR_UNDEF_FILEDATA
+				ownMessage, othersMessage = SendFileToChannel(commandParts[1:], address)
 			}
-		} else {
-			ownMessage = ERR_UNDEF_PATH
+		}
+	case "image-wrcomm":
+		ownMessage = ERR_UNDEF_MSG
+		if commandParts[1] != "" {
+			ownMessage = JoinCommands(commandParts[1:])
 		}
 	default:
 		ownMessage = ERR_UNDEF_COMM
@@ -102,146 +141,136 @@ func DecodeCommand(command string, address string) (string, string) {
 	return ownMessage, othersMessage
 }
 
-//Se obtiene un usuario por su direccion (devuelve el puntero)
-func FindUserByAddress(address string) *models.User {
-	var user *models.User
-	for i := range Users {
-		if Users[i].Address == address {
-			user = &Users[i]
-			return user
-		}
-	}
-	return nil
+func JoinCommands(commands []string) string {
+	return strings.Join(commands, " ")
 }
 
-//Se obtiene un canal por su nombre (devuelve el puntero)
 func FindChannelByName(channelName string) *models.ChannelRoom {
 	var channel *models.ChannelRoom
 	for i := range Channels {
-		if Channels[i].Name == channelName {
-			channel = &Channels[i]
-			return channel
+		if Channels[i].Name != channelName {
+			continue
 		}
+		channel = &Channels[i]
+		return channel
 	}
 	return nil
 }
 
-//Crea un canal
-func CreateChannel(channelName, address string) string {
-	var response string
-	channel := FindChannelByName(channelName)
-	if channel == nil {
+func CreateChannel(commands []string, address string) string {
+	response := MSG_CHANNEL_EXISTS
+	channelName := JoinCommands(commands)
+	if channel := FindChannelByName(channelName); channel == nil {
 		user := FindUserByAddress(address)
+		if user == nil {
+			log.Fatal(ERR_NOT_FOUND_USER)
+		}
+
 		newChannel := models.ChannelRoom{
 			Name: channelName,
 		}
-
 		Channels = append(Channels, newChannel)
 		user.Channel.Name = newChannel.Name
-		response = "Canal creado con éxito"
-	} else {
-		response = "El canal ya existe"
+		response = MSG_CHANNEL_CREATED
 	}
 	return response
 }
 
-//Devuelve todos los canales y notifica si el usuario esta suscrito a alguno
 func ListAllChannels(address string) string {
 	user := FindUserByAddress(address)
-	var response = "Lista de canales:\n"
+	if user == nil {
+		log.Fatal(ERR_NOT_FOUND_USER)
+	}
+
+	response := []string{"List of Channels:"}
 	for _, ch := range Channels {
+		subscribed := ""
 		if user.Channel.Name == ch.Name {
-			response += fmt.Sprintf("\t%s <Suscrito>\n", ch.Name)
-		} else {
-			response += fmt.Sprintf("\t%s\n", ch.Name)
+			subscribed = "<Subscribed>"
 		}
+		response = append(response, fmt.Sprintf("\t%s %s", ch.Name, subscribed))
 	}
-	response = response[:len(response)-1]
-	return response
+	return strings.Join(response, "\n")
 }
 
-//Suscribe el usuario a un canal
-func SubscribeToChannel(channelName string, address string) string {
-	//Se verifica que el canal exista
-	var response string
-	user := FindUserByAddress(address)
-	channel := FindChannelByName(channelName)
-	if channel == nil {
-		response = ERR_NOT_FOUND_CHAN
-	} else {
+func SubscribeToChannel(commands []string, address string) string {
+	response := ERR_NOT_FOUND_CHAN
+	channelName := JoinCommands(commands)
+	if channel := FindChannelByName(channelName); channel != nil {
+		user := FindUserByAddress(address)
+		if user == nil {
+			log.Fatal(ERR_NOT_FOUND_USER)
+		}
 		user.Channel.Name = channel.Name
-		response = "Suscripción exitosa"
+		response = MSG_SUBSCRIPTION
 	}
 	return response
 }
 
-//Funcion para enviar un mensaje escrito al canal suscrito por el cliente
-func BroadcastToChannel(address, message string) (string, string) {
-	responseOwn := ""
-	responseOthers := ""
+func BroadcastToChannel(commands []string, address string) (string, string) {
 	user := FindUserByAddress(address)
+	if user == nil {
+		log.Fatal(ERR_NOT_FOUND_USER)
+	}
+
+	responseOwn := ERR_NOT_SUBSCRIPTION
+	responseOthers := ""
 	if user.Channel.Name != "" {
-		responseOthers = message
-	} else {
-		responseOwn = ERR_NOT_SUBSCRIPTION
+		responseOwn = MSG_MESSAGE_SENT
+		responseOthers = JoinCommands(commands)
 	}
 	return responseOwn, responseOthers
 }
 
-//Funcion para enviar el archivo al canal suscrito por el cliente
-func SendFileToChannel(address string, commands []string) (string, string) {
-	responseOwn := ""
-	responseOthers := ""
+func SendFileToChannel(commands []string, address string) (string, string) {
 	user := FindUserByAddress(address)
+	if user == nil {
+		log.Fatal(ERR_NOT_FOUND_USER)
+	}
+
+	responseOwn := ERR_NOT_SUBSCRIPTION
+	responseOthers := ""
 	if user.Channel.Name != "" {
-		//Se verifica que el canal exista
-		channel := FindChannelByName(user.Channel.Name)
-		if channel == nil {
-			responseOwn = ERR_NOT_FOUND_CHAN
-		} else {
-			//Se crea el archivo en el path
+		responseOwn = ERR_NOT_FOUND_CHAN
+		if channel := FindChannelByName(user.Channel.Name); channel != nil {
 			file, err := CreateBase64File(*user, commands)
 			if err != nil {
-				return "Error al recibir el archivo: " + err.Error(), ""
+				return ERR_DECODING_FILE, ""
 			}
 
-			responseOwn = "Archivo enviado con éxito"
-			responseOthers = "Se ha recibido el archivo " + file.Name + "~" + file.Name + "~" + file.Type + "~" + file.Data
+			responseOwn = MSG_FILE_SENT
+			responseOthers = fmt.Sprintf(MSG_FILE_RECEIVED, file.Name) + "~" + file.Name + "~" + file.Type + "~" + file.Data
 		}
-	} else {
-		responseOwn = ERR_NOT_SUBSCRIPTION
 	}
 	return responseOwn, responseOthers
 }
 
-//Se genera el archivo con base al codigo enviado (commands: filename, data)
 func CreateBase64File(user models.User, commands []string) (models.File, error) {
-	//Esquema de URI: data:[<media type>][;base64],<data> (por defecto es text/plain;charset=US-ASCII)
-	var mediaType string
-	var data string
+	//URI scheme: data:[<media type>][;base64],<data> (default is text/plain;charset=US-ASCII)
 	dataFile := strings.Split(commands[1], ",")
+	mediaType := "text/plain"
+	data := dataFile[0]
 
 	if len(dataFile) > 1 {
 		dataType := strings.Split(dataFile[0], ";")
 		mediaType = dataType[0][strings.IndexByte(dataType[0], ':')+1:]
 		data = dataFile[1]
-	} else {
-		mediaType = "text/plain"
-		data = dataFile[0]
 	}
 
-	//Si el archivo ya existe, se renombre
+	//Renames the file if already exists
 	count := 1
 	fileName := commands[0]
 	fileValid := false
 	for !fileValid {
 		fileOldName := fileName
 		for _, f := range Files {
-			if f.Name == fileName {
-				fn := strings.Split(fileName, ".")
-				fileName = fn[0] + "-" + strconv.Itoa(count) + "." + fn[1]
-				count = count + 1
+			if f.Name != fileName {
+				continue
 			}
+
+			name := strings.Split(fileName, ".")
+			fileName = name[0] + "-" + strconv.Itoa(count) + "." + name[1]
+			count = count + 1
 		}
 
 		if fileOldName == fileName {
@@ -249,7 +278,6 @@ func CreateBase64File(user models.User, commands []string) (models.File, error) 
 		}
 	}
 
-	//Se crea el struct con la informacion
 	file := models.File{
 		Name:    fileName,
 		Type:    mediaType,
