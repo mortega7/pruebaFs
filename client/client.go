@@ -20,13 +20,13 @@ const (
 func main() {
 	conn, err := net.Dial(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
 	if err != nil {
-		log.Fatal("Error connecting to server: " + err.Error())
+		log.Fatal(fmt.Sprintf(controllers.ERR_CONNECTING_SERVER, err.Error()))
 		return
 	}
 	defer conn.Close()
 
 	if err := controllers.CreateFolder(conn); err != nil {
-		log.Fatal("Error creating client folder: " + err.Error())
+		log.Fatal(fmt.Sprintf(controllers.ERR_CREATING_FOLDER, err.Error()))
 		return
 	}
 
@@ -72,7 +72,7 @@ func handleSendToServer(conn net.Conn, chOut chan bool) {
 	fmt.Print(">> ")
 	text, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal("Error reading data from client: " + err.Error())
+		log.Fatal(fmt.Sprintf(controllers.ERR_READING_CLIENT_DATA, err.Error()))
 	}
 
 	text = strings.TrimSpace(text)
@@ -86,7 +86,7 @@ func handleSendToServer(conn net.Conn, chOut chan bool) {
 			file, err := controllers.DecodeFile(filePath)
 			text = commandParts[0] + " " + file.Name + " " + file.Data
 			if err != "" {
-				text = "image-wrcomm " + "Error reading file: " + err
+				text = "image-wrcomm " + fmt.Sprintf(controllers.ERR_READING_FILE, err)
 			}
 		}
 	} else {
@@ -98,9 +98,9 @@ func handleSendToServer(conn net.Conn, chOut chan bool) {
 }
 
 func exitClient(userExit bool) {
-	message := "$$ Goodbye!"
-	if !userExit {
-		message = "\n$$ The server has closed the connection"
+	message := "\n$$ " + fmt.Sprintf(controllers.MSG_CONNECTION_CLOSED)
+	if userExit {
+		message = "$$ " + fmt.Sprintf(controllers.MSG_GOODBYE)
 	}
 	fmt.Println(message)
 	os.Exit(0)

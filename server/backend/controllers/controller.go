@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/mortega7/pruebaFs/server/backend/models"
 )
 
 const (
-	API_PORT   = ":3000"
+	API_PORT   = 3000
 	API_ORIGIN = "http://localhost:8080"
 )
 
@@ -85,13 +84,11 @@ func IsUserInChannel(message models.Message, user models.User) bool {
 }
 
 func FindUserByAddress(address string) *models.User {
-	var user *models.User
 	for i := range Users {
 		if Users[i].Address != address {
 			continue
 		}
-		user = &Users[i]
-		return user
+		return &Users[i]
 	}
 	return nil
 }
@@ -146,13 +143,11 @@ func JoinCommands(commands []string) string {
 }
 
 func FindChannelByName(channelName string) *models.ChannelRoom {
-	var channel *models.ChannelRoom
 	for i := range Channels {
 		if Channels[i].Name != channelName {
 			continue
 		}
-		channel = &Channels[i]
-		return channel
+		return &Channels[i]
 	}
 	return nil
 }
@@ -269,7 +264,7 @@ func CreateBase64File(user models.User, commands []string) (models.File, error) 
 			}
 
 			name := strings.Split(fileName, ".")
-			fileName = name[0] + "-" + strconv.Itoa(count) + "." + name[1]
+			fileName = fmt.Sprintf("%s-%d.%s", name[0], count, name[1])
 			count = count + 1
 		}
 

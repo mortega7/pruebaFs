@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -13,5 +14,5 @@ func SetRoutes() {
 	mux.HandleFunc("/api/user", controllers.GetUsers)
 	mux.HandleFunc("/api/file", controllers.GetFiles)
 
-	log.Fatal(http.ListenAndServe(controllers.API_PORT, mux))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", controllers.API_PORT), mux))
 }

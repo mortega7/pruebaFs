@@ -3,11 +3,11 @@ package controllers
 import (
 	"bufio"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/mortega7/pruebaFs/client/models"
@@ -19,10 +19,20 @@ const (
 	MAX_BUFFER_CAPACITY = MAX_MEGABYTES * 1024 * 1024
 )
 
+const (
+	ERR_CONNECTING_SERVER   = "Error connecting to server: %s"
+	ERR_CREATING_FOLDER     = "Error creating client folder: %s"
+	ERR_READING_CLIENT_DATA = "Error reading data from client: %s"
+	ERR_PATH_NOT_EXISTS     = "The specified path does not exist"
+	ERR_FILE_SIZE_LENGTH    = "The file size exceeds the maximum allowed of %d MB"
+	ERR_READING_FILE        = "Error reading file: %s"
+	MSG_GOODBYE             = "Goodbye!"
+	MSG_CONNECTION_CLOSED   = "The server has closed the connection"
+)
+
 func GetFolder(conn net.Conn) string {
 	addressData := strings.Split(conn.LocalAddr().String(), ":")
-	path := CHANNELS_FOLDER + "/" + addressData[1]
-	return path
+	return CHANNELS_FOLDER + "/" + addressData[1]
 }
 
 func CreateFolder(conn net.Conn) error {
@@ -62,7 +72,7 @@ func CopyFile(fileName, fileData string, conn net.Conn) error {
 func DecodeFile(filePath string) (models.File, string) {
 	fileOpen, err := os.Open(filePath)
 	if err != nil {
-		return models.File{}, "The specified path does not exist"
+		return models.File{}, ERR_PATH_NOT_EXISTS
 	}
 	defer fileOpen.Close()
 
@@ -73,7 +83,7 @@ func DecodeFile(filePath string) (models.File, string) {
 	}
 
 	if len(content) > MAX_BUFFER_CAPACITY {
-		return models.File{}, "The file size exceeds the maximum allowed of " + strconv.Itoa(MAX_MEGABYTES) + " MB"
+		return models.File{}, fmt.Sprintf(ERR_FILE_SIZE_LENGTH, MAX_MEGABYTES)
 	}
 
 	pathData := strings.Split(filePath, "/")
