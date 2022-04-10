@@ -1,13 +1,13 @@
 <template>
-  <div class="card border-primary border-2 rounded-3" v-if="files != null">
+  <div class="card border-primary border-2 rounded-3" v-if="getFilesLength > 0">
     <div class="card-body">
       <div class="d-flex justify-content-center">
-        <h3 class="text-primary"><i class="fa fa-file"></i> Gestión/Estadísticas de Archivos <span class="badge bg-primary rounded-pill mx-1">{{ (files != null) ? files.length : 0 }}</span></h3>
+        <h3 class="text-primary"><i class="fa fa-file"></i> File Management/Statistics <span class="badge bg-primary rounded-pill mx-1">{{ getFilesLength }}</span></h3>
       </div>
       <div class="row">
         <div class="col-lg-5 col-sm-12 mt-3">
           <div class="card rounded-8">
-            <div class="card-header">Compartidos</div>
+            <div class="card-header">Shared</div>
             <div class="card-body">
               <p class="card-text">
                 <ul class="list-group list-group-flush">
@@ -18,7 +18,7 @@
                     <div class="ms-auto mx-3">
                       <span class="badge bg-light text-dark border border-dark">{{ file.channel.name }}</span>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary btn-download" @click="downloadFile(file)">Descargar</button>
+                    <button class="btn btn-sm btn-outline-primary btn-download" @click="downloadFile(file)">Download</button>
                   </li>
                 </ul>
               </p>
@@ -27,15 +27,15 @@
         </div>
         <div class="col-lg-7 col-sm-12 mt-3">
           <div class="card rounded-8">
-            <div class="card-header">Compartidos por Canal</div>
+            <div class="card-header">Shared by Channel</div>
             <div class="card-body">
-              <BarChart />
+              <BarChart :channelFiles="channelFiles" />
             </div>
           </div>
           <div class="card rounded-8 mt-3">
-            <div class="card-header">Compartidos por Extensión</div>
+            <div class="card-header">Shared by Extension</div>
             <div class="card-body">
-              <PieChart />
+              <PieChart :typeFiles="typeFiles" />
             </div>
           </div>
         </div>
@@ -45,8 +45,8 @@
 </template>
 
 <script>
-import { useStore } from 'vuex'
-import { computed, onMounted } from '@vue/runtime-core'
+import { useStore, mapGetters } from 'vuex'
+import { computed, onMounted, ref } from '@vue/runtime-core'
 import BarChart from '@/components/BarChart.vue'
 import PieChart from '@/components/PieChart.vue'
 
@@ -57,19 +57,32 @@ export default {
   },
   setup () {
     const store = useStore()
-    const files = computed(() => store.state.files)
+    const files = computed(() => store.state.moduleFiles.files)
+    const channelFiles = ref([])
+    const typeFiles = ref([])
 
     onMounted(async () => {
-      await store.dispatch('getFiles').then(() => console.log('Files loaded...'))
+      await store.dispatch('moduleFiles/getFiles').then(() => {
+        channelFiles.value = store.getters['moduleFiles/getFilesByChannel']
+        typeFiles.value = store.getters['moduleFiles/getFilesByType']
+      })
     })
 
     setInterval(async () => {
-      await store.dispatch('getFiles').then(() => console.log('Files updated...'))
+      await store.dispatch('moduleFiles/getFiles').then(() => {
+        channelFiles.value = store.getters['moduleFiles/getFilesByChannel']
+        typeFiles.value = store.getters['moduleFiles/getFilesByType']
+      })
     }, process.env.VUE_APP_RELOAD_TIME * 1000)
 
     return {
-      files
+      files,
+      channelFiles,
+      typeFiles
     }
+  },
+  computed: {
+    ...mapGetters('moduleFiles', ['getFilesLength'])
   },
   methods: {
     async downloadFile (file) {

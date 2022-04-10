@@ -3,8 +3,6 @@
 </template>
 
 <script>
-import { useStore } from 'vuex'
-import { onMounted, ref } from '@vue/runtime-core'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 
@@ -15,22 +13,9 @@ export default {
   components: {
     Bar
   },
+  props: ['channelFiles'],
   setup () {
-    const store = useStore()
-    const channelFiles = ref([])
-
-    onMounted(() => {
-      setTimeout(() => {
-        channelFiles.value = store.getters.getFilesByChannel
-      }, 1 * 1000)
-    })
-
-    setInterval(() => {
-      channelFiles.value = store.getters.getFilesByChannel
-    }, process.env.VUE_APP_RELOAD_TIME * 1000)
-
     return {
-      channelFiles,
       chartOptions: {
         responsive: true,
         maintainAspectRatio: false
@@ -47,7 +32,7 @@ export default {
         datasets: [{
           barThickness: 30,
           minBarThickness: 15,
-          label: 'Archivos compartidos por canal',
+          label: 'File shares per channel',
           backgroundColor: '#0D6EFD',
           data: this.channelFiles.quantities
         }]

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="container mt-5">
-      <h2>Panel de Control</h2>
+      <h2>Dashboard</h2>
       <hr class="text-primary" />
       <div class="dashboard-list-top">
         <UsersComponent />

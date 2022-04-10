@@ -3,8 +3,6 @@
 </template>
 
 <script>
-import { useStore } from 'vuex'
-import { onMounted, ref } from '@vue/runtime-core'
 import { Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
 
@@ -15,22 +13,9 @@ export default {
   components: {
     Pie
   },
+  props: ['typeFiles'],
   setup () {
-    const store = useStore()
-    const typeFiles = ref([])
-
-    onMounted(() => {
-      setTimeout(() => {
-        typeFiles.value = store.getters.getFilesByType
-      }, 1 * 1000)
-    })
-
-    setInterval(() => {
-      typeFiles.value = store.getters.getFilesByType
-    }, process.env.VUE_APP_RELOAD_TIME * 1000)
-
     return {
-      typeFiles,
       chartOptions: {
         responsive: true,
         maintainAspectRatio: false
