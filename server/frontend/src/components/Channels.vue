@@ -17,28 +17,27 @@
 </template>
 
 <script>
-import { useStore, mapGetters } from 'vuex'
-import { computed, onMounted } from '@vue/runtime-core'
+import { mapGetters, mapState, mapActions } from 'vuex'
 
 export default {
-  setup () {
-    const store = useStore()
-    const channels = computed(() => store.state.moduleChannels.channels)
-
-    onMounted(async () => {
-      await store.dispatch('moduleChannels/getChannels')
-    })
-
-    setInterval(async () => {
-      await store.dispatch('moduleChannels/getChannels')
-    }, process.env.VUE_APP_RELOAD_TIME * 1000)
-
+  mounted () {
+    this.getChannels()
+    this.interval = setInterval(this.getChannels, process.env.VUE_APP_RELOAD_TIME)
+  },
+  destroy () {
+    clearInterval(this.interval)
+  },
+  data () {
     return {
-      channels
+      interval: null
     }
   },
   computed: {
+    ...mapState('moduleChannels', ['channels']),
     ...mapGetters('moduleChannels', ['getChannelsLength'])
+  },
+  methods: {
+    ...mapActions('moduleChannels', ['getChannels'])
   }
 }
 </script>

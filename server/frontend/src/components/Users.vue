@@ -19,28 +19,27 @@
 </template>
 
 <script>
-import { useStore, mapGetters } from 'vuex'
-import { computed, onMounted } from '@vue/runtime-core'
+import { mapGetters, mapState, mapActions } from 'vuex'
 
 export default {
-  setup () {
-    const store = useStore()
-    const users = computed(() => store.state.moduleUsers.users)
-
-    onMounted(async () => {
-      await store.dispatch('moduleUsers/getUsers')
-    })
-
-    setInterval(async () => {
-      await store.dispatch('moduleUsers/getUsers')
-    }, process.env.VUE_APP_RELOAD_TIME * 1000)
-
+  mounted () {
+    this.getUsers()
+    this.interval = setInterval(this.getUsers, process.env.VUE_APP_RELOAD_TIME)
+  },
+  destroy () {
+    clearInterval(this.interval)
+  },
+  data () {
     return {
-      users
+      interval: null
     }
   },
   computed: {
+    ...mapState('moduleUsers', ['users']),
     ...mapGetters('moduleUsers', ['getUsersLength', 'getUserChannel'])
+  },
+  methods: {
+    ...mapActions('moduleUsers', ['getUsers'])
   }
 }
 </script>

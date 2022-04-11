@@ -3,6 +3,7 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 
@@ -13,8 +14,7 @@ export default {
   components: {
     Bar
   },
-  props: ['channelFiles'],
-  setup () {
+  data () {
     return {
       chartOptions: {
         responsive: true,
@@ -26,15 +26,16 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('moduleFiles', ['getFilesByChannel']),
     chartData () {
       return {
-        labels: this.channelFiles.channels,
+        labels: this.getFilesByChannel.channels,
         datasets: [{
           barThickness: 30,
           minBarThickness: 15,
           label: 'File shares per channel',
           backgroundColor: '#0D6EFD',
-          data: this.channelFiles.quantities
+          data: this.getFilesByChannel.quantities
         }]
       }
     }

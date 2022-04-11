@@ -29,13 +29,13 @@
           <div class="card rounded-8">
             <div class="card-header">Shared by Channel</div>
             <div class="card-body">
-              <BarChart :channelFiles="channelFiles" />
+              <BarChart />
             </div>
           </div>
           <div class="card rounded-8 mt-3">
             <div class="card-header">Shared by Extension</div>
             <div class="card-body">
-              <PieChart :typeFiles="typeFiles" />
+              <PieChart />
             </div>
           </div>
         </div>
@@ -45,8 +45,7 @@
 </template>
 
 <script>
-import { useStore, mapGetters } from 'vuex'
-import { computed, onMounted, ref } from '@vue/runtime-core'
+import { mapGetters, mapActions, mapState } from 'vuex'
 import BarChart from '@/components/BarChart.vue'
 import PieChart from '@/components/PieChart.vue'
 
@@ -55,36 +54,24 @@ export default {
     BarChart,
     PieChart
   },
-  setup () {
-    const store = useStore()
-    const files = computed(() => store.state.moduleFiles.files)
-    const channelFiles = ref([])
-    const typeFiles = ref([])
-
-    onMounted(async () => {
-      await store.dispatch('moduleFiles/getFiles').then(() => {
-        channelFiles.value = store.getters['moduleFiles/getFilesByChannel']
-        typeFiles.value = store.getters['moduleFiles/getFilesByType']
-      })
-    })
-
-    setInterval(async () => {
-      await store.dispatch('moduleFiles/getFiles').then(() => {
-        channelFiles.value = store.getters['moduleFiles/getFilesByChannel']
-        typeFiles.value = store.getters['moduleFiles/getFilesByType']
-      })
-    }, process.env.VUE_APP_RELOAD_TIME * 1000)
-
+  mounted () {
+    this.getFiles()
+    this.interval = setInterval(this.getFiles, process.env.VUE_APP_RELOAD_TIME)
+  },
+  destroy () {
+    clearInterval(this.interval)
+  },
+  data () {
     return {
-      files,
-      channelFiles,
-      typeFiles
+      interval: null
     }
   },
   computed: {
+    ...mapState('moduleFiles', ['files']),
     ...mapGetters('moduleFiles', ['getFilesLength'])
   },
   methods: {
+    ...mapActions('moduleFiles', ['getFiles']),
     async downloadFile (file) {
       const a = document.createElement('a')
       a.href = 'data:' + file.type + ';base64,' + file.data
