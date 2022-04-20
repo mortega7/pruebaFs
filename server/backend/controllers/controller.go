@@ -234,7 +234,7 @@ func SendFileToChannel(commands []string, address string) (string, string) {
 			}
 
 			responseOwn = MSG_FILE_SENT
-			responseOthers = fmt.Sprintf(MSG_FILE_RECEIVED, file.Name) + "~" + file.Name + "~" + file.Type + "~" + file.Data
+			responseOthers = fmt.Sprintf(MSG_FILE_RECEIVED, file.Name) + "~" + file.Name + "~" + file.Data
 		}
 	}
 	return responseOwn, responseOthers

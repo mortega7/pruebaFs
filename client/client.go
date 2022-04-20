@@ -31,11 +31,10 @@ func main() {
 	}
 
 	receiveFromServer := make(chan string)
-	sendToServer := make(chan bool)
 
 	for {
 		go handleReceiveFromServer(conn, receiveFromServer)
-		go handleSendToServer(conn, sendToServer)
+		go handleSendToServer(conn)
 
 		select {
 		case res := <-receiveFromServer:
@@ -58,7 +57,7 @@ func handleReceiveFromServer(conn net.Conn, chIn chan string) {
 		fileData := strings.Split(message, "~")
 		message = fileData[0]
 
-		err := controllers.CopyFile(fileData[1], fileData[3], conn)
+		err := controllers.CopyFile(fileData[1], fileData[2], conn)
 		if err != nil {
 			message = err.Error()
 		}
@@ -67,7 +66,7 @@ func handleReceiveFromServer(conn net.Conn, chIn chan string) {
 	chIn <- message
 }
 
-func handleSendToServer(conn net.Conn, chOut chan bool) {
+func handleSendToServer(conn net.Conn) {
 	reader := bufio.NewReaderSize(os.Stdin, controllers.MAX_BUFFER_CAPACITY)
 	fmt.Print(">> ")
 	text, err := reader.ReadString('\n')
@@ -94,7 +93,6 @@ func handleSendToServer(conn net.Conn, chOut chan bool) {
 	}
 
 	fmt.Fprintf(conn, text+"\n")
-	chOut <- true
 }
 
 func exitClient(userExit bool) {
