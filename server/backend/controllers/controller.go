@@ -11,7 +11,7 @@ import (
 
 const (
 	API_PORT   = 3000
-	API_ORIGIN = "http://localhost:8080"
+	API_ORIGIN = "*"
 )
 
 const (
